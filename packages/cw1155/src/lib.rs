@@ -1,4 +1,4 @@
-pub use cw_utils::Expiration;
+pub use cw0::Expiration;
 
 pub use crate::event::{ApproveAllEvent, MetadataEvent, TransferEvent};
 pub use crate::msg::{Cw1155ExecuteMsg, TokenId};

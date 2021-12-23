@@ -80,8 +80,8 @@ fn verify_png_logo(logo: &[u8]) -> Result<(), ContractError> {
 /// Checks if passed logo is correct, and if not, returns an error
 fn verify_logo(logo: &Logo) -> Result<(), ContractError> {
     match logo {
-        Logo::Embedded(EmbeddedLogo::Svg(logo)) => verify_xml_logo(logo),
-        Logo::Embedded(EmbeddedLogo::Png(logo)) => verify_png_logo(logo),
+        Logo::Embedded(EmbeddedLogo::Svg(logo)) => verify_xml_logo(&logo),
+        Logo::Embedded(EmbeddedLogo::Png(logo)) => verify_png_logo(&logo),
         Logo::Url(_) => Ok(()), // Any reasonable url validation would be regex based, probably not worth it
     }
 }
@@ -521,9 +521,7 @@ pub fn query_download_logo(deps: Deps) -> StdResult<DownloadLogoResponse> {
 
 #[cfg(test)]
 mod tests {
-    use cosmwasm_std::testing::{
-        mock_dependencies, mock_dependencies_with_balance, mock_env, mock_info,
-    };
+    use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
     use cosmwasm_std::{coins, from_binary, Addr, CosmosMsg, StdError, SubMsg, WasmMsg};
 
     use super::*;
@@ -602,7 +600,7 @@ mod tests {
 
         #[test]
         fn basic() {
-            let mut deps = mock_dependencies();
+            let mut deps = mock_dependencies(&[]);
             let amount = Uint128::from(11223344u128);
             let instantiate_msg = InstantiateMsg {
                 name: "Cash Token".to_string(),
@@ -637,7 +635,7 @@ mod tests {
 
         #[test]
         fn mintable() {
-            let mut deps = mock_dependencies();
+            let mut deps = mock_dependencies(&[]);
             let amount = Uint128::new(11223344);
             let minter = String::from("asmodat");
             let limit = Uint128::new(511223344);
@@ -684,7 +682,7 @@ mod tests {
 
         #[test]
         fn mintable_over_cap() {
-            let mut deps = mock_dependencies();
+            let mut deps = mock_dependencies(&[]);
             let amount = Uint128::new(11223344);
             let minter = String::from("asmodat");
             let limit = Uint128::new(11223300);
@@ -716,7 +714,7 @@ mod tests {
 
             #[test]
             fn basic() {
-                let mut deps = mock_dependencies();
+                let mut deps = mock_dependencies(&[]);
                 let instantiate_msg = InstantiateMsg {
                     name: "Cash Token".to_string(),
                     symbol: "CASH".to_string(),
@@ -756,7 +754,7 @@ mod tests {
 
             #[test]
             fn invalid_marketing() {
-                let mut deps = mock_dependencies();
+                let mut deps = mock_dependencies(&[]);
                 let instantiate_msg = InstantiateMsg {
                     name: "Cash Token".to_string(),
                     symbol: "CASH".to_string(),
@@ -787,7 +785,7 @@ mod tests {
 
     #[test]
     fn can_mint_by_minter() {
-        let mut deps = mock_dependencies();
+        let mut deps = mock_dependencies(&[]);
 
         let genesis = String::from("genesis");
         let amount = Uint128::new(11223344);
@@ -834,7 +832,7 @@ mod tests {
 
     #[test]
     fn others_cannot_mint() {
-        let mut deps = mock_dependencies();
+        let mut deps = mock_dependencies(&[]);
         do_instantiate_with_minter(
             deps.as_mut(),
             &String::from("genesis"),
@@ -855,7 +853,7 @@ mod tests {
 
     #[test]
     fn no_one_mints_if_minter_unset() {
-        let mut deps = mock_dependencies();
+        let mut deps = mock_dependencies(&[]);
         do_instantiate(deps.as_mut(), &String::from("genesis"), Uint128::new(1234));
 
         let msg = ExecuteMsg::Mint {
@@ -870,7 +868,7 @@ mod tests {
 
     #[test]
     fn instantiate_multiple_accounts() {
-        let mut deps = mock_dependencies();
+        let mut deps = mock_dependencies(&[]);
         let amount1 = Uint128::from(11223344u128);
         let addr1 = String::from("addr0001");
         let amount2 = Uint128::from(7890987u128);
@@ -912,7 +910,7 @@ mod tests {
 
     #[test]
     fn queries_work() {
-        let mut deps = mock_dependencies_with_balance(&coins(2, "token"));
+        let mut deps = mock_dependencies(&coins(2, "token"));
         let addr1 = String::from("addr0001");
         let amount1 = Uint128::from(12340000u128);
 
@@ -949,7 +947,7 @@ mod tests {
 
     #[test]
     fn transfer() {
-        let mut deps = mock_dependencies_with_balance(&coins(2, "token"));
+        let mut deps = mock_dependencies(&coins(2, "token"));
         let addr1 = String::from("addr0001");
         let addr2 = String::from("addr0002");
         let amount1 = Uint128::from(12340000u128);
@@ -1009,7 +1007,7 @@ mod tests {
 
     #[test]
     fn burn() {
-        let mut deps = mock_dependencies_with_balance(&coins(2, "token"));
+        let mut deps = mock_dependencies(&coins(2, "token"));
         let addr1 = String::from("addr0001");
         let amount1 = Uint128::from(12340000u128);
         let burn = Uint128::from(76543u128);
@@ -1058,7 +1056,7 @@ mod tests {
 
     #[test]
     fn send() {
-        let mut deps = mock_dependencies_with_balance(&coins(2, "token"));
+        let mut deps = mock_dependencies(&coins(2, "token"));
         let addr1 = String::from("addr0001");
         let contract = String::from("addr0002");
         let amount1 = Uint128::from(12340000u128);
@@ -1135,7 +1133,7 @@ mod tests {
 
         #[test]
         fn update_unauthorised() {
-            let mut deps = mock_dependencies();
+            let mut deps = mock_dependencies(&[]);
             let instantiate_msg = InstantiateMsg {
                 name: "Cash Token".to_string(),
                 symbol: "CASH".to_string(),
@@ -1189,7 +1187,7 @@ mod tests {
 
         #[test]
         fn update_project() {
-            let mut deps = mock_dependencies();
+            let mut deps = mock_dependencies(&[]);
             let instantiate_msg = InstantiateMsg {
                 name: "Cash Token".to_string(),
                 symbol: "CASH".to_string(),
@@ -1242,7 +1240,7 @@ mod tests {
 
         #[test]
         fn clear_project() {
-            let mut deps = mock_dependencies();
+            let mut deps = mock_dependencies(&[]);
             let instantiate_msg = InstantiateMsg {
                 name: "Cash Token".to_string(),
                 symbol: "CASH".to_string(),
@@ -1295,7 +1293,7 @@ mod tests {
 
         #[test]
         fn update_description() {
-            let mut deps = mock_dependencies();
+            let mut deps = mock_dependencies(&[]);
             let instantiate_msg = InstantiateMsg {
                 name: "Cash Token".to_string(),
                 symbol: "CASH".to_string(),
@@ -1348,7 +1346,7 @@ mod tests {
 
         #[test]
         fn clear_description() {
-            let mut deps = mock_dependencies();
+            let mut deps = mock_dependencies(&[]);
             let instantiate_msg = InstantiateMsg {
                 name: "Cash Token".to_string(),
                 symbol: "CASH".to_string(),
@@ -1401,7 +1399,7 @@ mod tests {
 
         #[test]
         fn update_marketing() {
-            let mut deps = mock_dependencies();
+            let mut deps = mock_dependencies(&[]);
             let instantiate_msg = InstantiateMsg {
                 name: "Cash Token".to_string(),
                 symbol: "CASH".to_string(),
@@ -1454,7 +1452,7 @@ mod tests {
 
         #[test]
         fn update_marketing_invalid() {
-            let mut deps = mock_dependencies();
+            let mut deps = mock_dependencies(&[]);
             let instantiate_msg = InstantiateMsg {
                 name: "Cash Token".to_string(),
                 symbol: "CASH".to_string(),
@@ -1511,7 +1509,7 @@ mod tests {
 
         #[test]
         fn clear_marketing() {
-            let mut deps = mock_dependencies();
+            let mut deps = mock_dependencies(&[]);
             let instantiate_msg = InstantiateMsg {
                 name: "Cash Token".to_string(),
                 symbol: "CASH".to_string(),
@@ -1564,7 +1562,7 @@ mod tests {
 
         #[test]
         fn update_logo_url() {
-            let mut deps = mock_dependencies();
+            let mut deps = mock_dependencies(&[]);
             let instantiate_msg = InstantiateMsg {
                 name: "Cash Token".to_string(),
                 symbol: "CASH".to_string(),
@@ -1613,7 +1611,7 @@ mod tests {
 
         #[test]
         fn update_logo_png() {
-            let mut deps = mock_dependencies();
+            let mut deps = mock_dependencies(&[]);
             let instantiate_msg = InstantiateMsg {
                 name: "Cash Token".to_string(),
                 symbol: "CASH".to_string(),
@@ -1663,7 +1661,7 @@ mod tests {
 
         #[test]
         fn update_logo_svg() {
-            let mut deps = mock_dependencies();
+            let mut deps = mock_dependencies(&[]);
             let instantiate_msg = InstantiateMsg {
                 name: "Cash Token".to_string(),
                 symbol: "CASH".to_string(),
@@ -1714,7 +1712,7 @@ mod tests {
 
         #[test]
         fn update_logo_png_oversized() {
-            let mut deps = mock_dependencies();
+            let mut deps = mock_dependencies(&[]);
             let instantiate_msg = InstantiateMsg {
                 name: "Cash Token".to_string(),
                 symbol: "CASH".to_string(),
@@ -1764,7 +1762,7 @@ mod tests {
 
         #[test]
         fn update_logo_svg_oversized() {
-            let mut deps = mock_dependencies();
+            let mut deps = mock_dependencies(&[]);
             let instantiate_msg = InstantiateMsg {
                 name: "Cash Token".to_string(),
                 symbol: "CASH".to_string(),
@@ -1821,7 +1819,7 @@ mod tests {
 
         #[test]
         fn update_logo_png_invalid() {
-            let mut deps = mock_dependencies();
+            let mut deps = mock_dependencies(&[]);
             let instantiate_msg = InstantiateMsg {
                 name: "Cash Token".to_string(),
                 symbol: "CASH".to_string(),
@@ -1871,7 +1869,7 @@ mod tests {
 
         #[test]
         fn update_logo_svg_invalid() {
-            let mut deps = mock_dependencies();
+            let mut deps = mock_dependencies(&[]);
             let instantiate_msg = InstantiateMsg {
                 name: "Cash Token".to_string(),
                 symbol: "CASH".to_string(),

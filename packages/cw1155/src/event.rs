@@ -1,5 +1,5 @@
 use cosmwasm_std::{attr, Response, Uint128};
-use cw_utils::Event;
+use cw0::Event;
 
 /// Tracks token transfer/mint/burn actions
 pub struct TransferEvent<'a> {

@@ -66,8 +66,8 @@ async function setupTest() {
   process.stdout.write("Instantiating TerraSwap Token contract... ");
 
   const tokenResult = await instantiateContract(terra, deployer, deployer, cw20CodeId, {
-    name: "Whatever noks",
-    symbol: "WNOKS",
+    name: "Whatever noks 2",
+    symbol: "WNOKSZ",
     decimals: 6,
     initial_balances: [],
     mint: {
@@ -93,21 +93,52 @@ async function setupTest() {
   // Step 4. Instantiate TerraSwap Pair contract
   process.stdout.write("Instantiating TerraSwap pair contract... ");
 
+  /*{
+    "asset_infos": [{
+    "token": {
+      "contract_addr": "terra12sxpgy9l5qcyeyxguks6u7rurn3hen9vy6k5vr"
+    }
+  },
+    {
+      "native_token": {
+        "denom": "uusd"
+      }
+    }
+  ],
+      "token_code_id": 28689
+  }*/
+
+  /*let a = {
+    asset_infos: [{
+    token: {
+      contract_addr: mirrorToken
+    }
+  },
+    {
+      native_token: {
+        denom: "uusd"
+      }
+    }
+  ],
+      token_code_id: cw20CodeId
+  };*/
+
   const pairResult = await instantiateContract(terra, deployer, deployer, codeId, {
-    asset_infos: [
-      {
-        token: {
-          contract_addr: mirrorToken,
-        },
-      },
+    asset_infos: [{
+      token: {
+        contract_addr: mirrorToken
+      }
+    },
       {
         native_token: {
-          denom: "uusd",
-        },
-      },
+          denom: "uusd"
+        }
+      }
     ],
-    token_code_id: cw20CodeId,
+    token_code_id: cw20CodeId
   });
+
+  process.stdout.write("POST.. ");
 
   const event = pairResult.logs[0].events.find((event) => {
     return event.type == "instantiate_contract";
