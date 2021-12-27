@@ -3,7 +3,7 @@ import BN from "bn.js";
 import chalk from "chalk";
 import * as chai from "chai";
 import chaiAsPromised from "chai-as-promised";
-import {LCDClient, LocalTerra, MnemonicKey, MsgExecuteContract} from "@terra-money/terra.js";
+import { LCDClient, LocalTerra, MnemonicKey, MsgExecuteContract } from "@terra-money/terra.js";
 import {
   toEncodedBinary,
   sendTransaction,
@@ -24,6 +24,9 @@ const terra = new LCDClient({
   URL: 'https://bombay-lcd.terra.dev',
   chainID: 'bombay-12',
 });
+
+console.log("Start");
+console.log(process.env.ASTROPUG_MNEMONIC_KEY);
 
 // create a key out of a mnemonic
 const mk = new MnemonicKey({
@@ -66,13 +69,12 @@ async function setupTest() {
   process.stdout.write("Instantiating TerraSwap Token contract... ");
 
   const tokenResult = await instantiateContract(terra, deployer, deployer, cw20CodeId, {
-    name: "Whatever noks 2",
-    symbol: "WNOKSZ",
+    name: "AstroPugTEST",
+    symbol: "APUGT",
     decimals: 6,
-    initial_balances: [],
-    mint: {
-      minter: deployer.key.accAddress,
-    },
+    initial_balances: [
+      { address: deployer.key.accAddress, amount: "100000000000000000" }
+    ]
   });
 
   mirrorToken = tokenResult.logs[0].events[0].attributes[3].value;
@@ -129,13 +131,13 @@ async function setupTest() {
         contract_addr: mirrorToken
       }
     },
-      {
-        native_token: {
-          denom: "uusd"
-        }
+    {
+      native_token: {
+        denom: "uusd"
       }
+    }
     ],
-    token_code_id: cw20CodeId
+    token_code_id: 154
   });
 
   process.stdout.write("POST.. ");
