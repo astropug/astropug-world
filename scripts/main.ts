@@ -44,6 +44,7 @@ const user1 = obj; //terra.wallets.test2;
 const user2 = obj; //terra.wallets.test3;
 
 const tokenArtifactPath = "../artifacts/cw20_base.wasm";
+const stakingArtifactPath = "../artifacts/cw20_staking.wasm";
 
 let mirrorToken: string;
 let terraswapPair: string;
@@ -54,6 +55,38 @@ let terraswapLpToken: string;
 //----------------------------------------------------------------------------------------
 
 async function setupTest() {
+  // // Step 0. Upload Staking Token code
+  // process.stdout.write("Staking code...");
+
+  // const stakeCodeId = await storeCode(
+  //   terra,
+  //   deployer,
+  //   path.resolve(__dirname, stakingArtifactPath)
+  // );
+
+  const ScodeId=29256
+  const stakeCodeId = ScodeId
+
+  console.log(chalk.green("Done!"), `${chalk.blue("codeId")}=${stakeCodeId}`);
+
+  // Step 2. Instantiate Staking Token contract
+  process.stdout.write("Instantiating Staking Token contract... ");
+
+  const stakingResult = await instantiateContract(terra, deployer, deployer, stakeCodeId, {
+    name: "AstroPugStakeTest",
+    symbol: "APUGST",
+    decimals: 6,
+    validator: deployer.key.accAddress,
+    unbonding_period: 2592000,
+    exit_tax: 0.05,
+    min_withdrawal: 1000000000000
+  });
+
+  console.log(stakingResult);
+  const stakeToken = stakingResult.logs[0].events[0].attributes[3].value;
+
+  console.log(chalk.green("Done!"), `${chalk.blue("contractAddress")}=${stakeToken}`);
+
   // Step 1. Upload TerraSwap Token code
   process.stdout.write("Uploading TerraSwap Token code... ");
 
@@ -69,12 +102,16 @@ async function setupTest() {
   process.stdout.write("Instantiating TerraSwap Token contract... ");
 
   const tokenResult = await instantiateContract(terra, deployer, deployer, cw20CodeId, {
-    name: "AstroPugTEST",
+    name: "AstroPugTest",
     symbol: "APUGT",
     decimals: 6,
     initial_balances: [
-      { address: deployer.key.accAddress, amount: "100000000000000000" }
-    ]
+      { address: deployer.key.accAddress, amount: "50000000000000000" }
+    ],
+    mint: {
+      minter: stakeToken,
+      cap: "100000000000000000"
+    }
   });
 
   mirrorToken = tokenResult.logs[0].events[0].attributes[3].value;
