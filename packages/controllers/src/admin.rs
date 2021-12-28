@@ -6,7 +6,7 @@ use thiserror::Error;
 use cosmwasm_std::{attr, Addr, Deps, DepsMut, MessageInfo, Response, StdError, StdResult};
 use cw_storage_plus::Item;
 
-// TODO: should the return values end up in cw0, so eg. cw4 can import them as well as this module?
+// TODO: should the return values end up in utils, so eg. cw4 can import them as well as this module?
 /// Returned from Admin.query_admin()
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
 pub struct AdminResponse {
@@ -100,7 +100,7 @@ mod tests {
 
     #[test]
     fn set_and_get_admin() {
-        let mut deps = mock_dependencies(&[]);
+        let mut deps = mock_dependencies();
         let control = Admin::new("foo");
 
         // initialize and check
@@ -117,7 +117,7 @@ mod tests {
 
     #[test]
     fn admin_checks() {
-        let mut deps = mock_dependencies(&[]);
+        let mut deps = mock_dependencies();
 
         let control = Admin::new("foo");
         let owner = Addr::unchecked("big boss");
@@ -143,7 +143,7 @@ mod tests {
 
     #[test]
     fn test_execute_query() {
-        let mut deps = mock_dependencies(&[]);
+        let mut deps = mock_dependencies();
 
         // initial setup
         let control = Admin::new("foo");

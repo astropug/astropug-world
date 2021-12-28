@@ -4,15 +4,12 @@ The ideas in here are based on the `cosmwasm-storage` crate. However,
 after much usage, we decided a complete rewrite could allow us to add
 more powerful and easy to use interfaces. Here are those interfaces.
 
-**Status: experimental**
+**Status: beta**
 
-You currently should not be using this crate outside of the `cw-plus`
-repo. This is a first draft of many types. We will update the status
-after they have been used more heavily and the interfaces stabilized.
-
-The ideas/desired functionality in here should be more or less final,
-it's just the form to express them that is not final. As we add new functionality,
-we will continue to refine the foundations, but maintain semver.
+This has been heavily used in many production-quality contracts and
+heavily refined. There is one planned API break (dealing with
+auto-deserializing keys in range queries), but the code has demonstrated
+itself to be stable and powerful. Please feel free to use in your contracts.
 
 ## Usage Overview
 
@@ -51,7 +48,7 @@ struct Config {
 }
 
 // note const constructor rather than 2 functions with Singleton
-const CONFIG: Item<Config> = Item::new(b"config");
+const CONFIG: Item<Config> = Item::new("config");
 
 fn demo() -> StdResult<()> {
     let mut store = MockStorage::new();
@@ -113,7 +110,8 @@ iteration. That's right, you can list all items in a `Map`, or only
 part of them. We can efficiently allow pagination over these items as
 well, starting at the point the last query ended, with low gas costs.
 This requires the `iterator` feature to be enabled in `cw-storage-plus`
-(which automatically enables it in `cosmwasm-std` as well).
+(which automatically enables it in `cosmwasm-std` as well, and which is
+enabled by default).
 
 If you are coming from using `Bucket`, the biggest change is that
 we no longer store `Storage` inside, meaning we don't need read and write
@@ -133,7 +131,7 @@ struct Data {
     pub age: i32,
 }
 
-const PEOPLE: Map<&[u8], Data> = Map::new(b"people");
+const PEOPLE: Map<&str, Data> = Map::new("people");
 
 fn demo() -> StdResult<()> {
     let mut store = MockStorage::new();
@@ -143,14 +141,14 @@ fn demo() -> StdResult<()> {
     };
 
     // load and save with extra key argument
-    let empty = PEOPLE.may_load(&store, b"john")?;
+    let empty = PEOPLE.may_load(&store, "john")?;
     assert_eq!(None, empty);
-    PEOPLE.save(&mut store, b"john", &data)?;
-    let loaded = PEOPLE.load(&store, b"john")?;
+    PEOPLE.save(&mut store, "john", &data)?;
+    let loaded = PEOPLE.load(&store, "john")?;
     assert_eq!(data, loaded);
 
     // nothing on another key
-    let missing = PEOPLE.may_load(&store, b"jack")?;
+    let missing = PEOPLE.may_load(&store, "jack")?;
     assert_eq!(None, missing);
 
     // update function for new or existing keys
@@ -167,21 +165,21 @@ fn demo() -> StdResult<()> {
         }
     };
 
-    let old_john = PEOPLE.update(&mut store, b"john", birthday)?;
+    let old_john = PEOPLE.update(&mut store, "john", birthday)?;
     assert_eq!(33, old_john.age);
     assert_eq!("John", old_john.name.as_str());
 
-    let new_jack = PEOPLE.update(&mut store, b"jack", birthday)?;
+    let new_jack = PEOPLE.update(&mut store, "jack", birthday)?;
     assert_eq!(0, new_jack.age);
     assert_eq!("Newborn", new_jack.name.as_str());
 
     // update also changes the store
-    assert_eq!(old_john, PEOPLE.load(&store, b"john")?);
-    assert_eq!(new_jack, PEOPLE.load(&store, b"jack")?);
+    assert_eq!(old_john, PEOPLE.load(&store, "john")?);
+    assert_eq!(new_jack, PEOPLE.load(&store, "jack")?);
 
     // removing leaves us empty
-    PEOPLE.remove(&mut store, b"john");
-    let empty = PEOPLE.may_load(&store, b"john")?;
+    PEOPLE.remove(&mut store, "john");
+    let empty = PEOPLE.may_load(&store, "john")?;
     assert_eq!(None, empty);
 
     Ok(())
@@ -204,15 +202,14 @@ A `Map` key can be anything that implements the `PrimaryKey` trait. There are a 
  - `impl<'a, T: Endian + Clone> PrimaryKey<'a> for IntKey<T>`
 
 That means that byte and string slices, byte vectors, and strings, can be conveniently used as keys.
-Moreover, some other types can be used as well, like addresses and addresses references, pairs and triples, and
+Moreover, some other types can be used as well, like addresses and address references, pairs and triples, and
 integer types.
 
-If the key represents and address, we suggest using `&Addr` for keys in storage, instead of `String` or string slices. This implies doing address validation
-through `addr_validate` on any address passed in via a message, to ensure it's a legitimate address, and not random text
-which will fail later.
-
-Thus, `pub fn addr_validate(&self, &str) -> Addr` in `deps.api` can be used for address validation, and the returned
-`Addr` can be conveniently used as key in a `Map` or similar structure.
+If the key represents an address, we suggest using `&Addr` for keys in storage, instead of `String` or string slices.
+This implies doing address validation through `addr_validate` on any address passed in via a message, to ensure it's a
+legitimate address, and not random text which will fail later.
+`pub fn addr_validate(&self, &str) -> Addr` in `deps.api` can be used for address validation, and the returned `Addr`
+can then be conveniently used as key in a `Map` or similar structure.
 
 ### Composite Keys
 
@@ -230,27 +227,27 @@ everywhere you used a byte slice above.
 ```rust
 // Note the tuple for primary key. We support one slice, or a 2 or 3-tuple
 // adding longer tuples is quite easy but unlikely to be needed.
-const ALLOWANCE: Map<(&[u8], &[u8]), u64> = Map::new(b"allow");
+const ALLOWANCE: Map<(&str, &str), u64> = Map::new("allow");
 
 fn demo() -> StdResult<()> {
     let mut store = MockStorage::new();
 
     // save and load on a composite key
-    let empty = ALLOWANCE.may_load(&store, (b"owner", b"spender"))?;
+    let empty = ALLOWANCE.may_load(&store, ("owner", "spender"))?;
     assert_eq!(None, empty);
-    ALLOWANCE.save(&mut store, (b"owner", b"spender"), &777)?;
-    let loaded = ALLOWANCE.load(&store, (b"owner", b"spender"))?;
+    ALLOWANCE.save(&mut store, ("owner", "spender"), &777)?;
+    let loaded = ALLOWANCE.load(&store, ("owner", "spender"))?;
     assert_eq!(777, loaded);
 
     // doesn't appear under other key (even if a concat would be the same)
-    let different = ALLOWANCE.may_load(&store, (b"owners", b"pender")).unwrap();
+    let different = ALLOWANCE.may_load(&store, ("owners", "pender")).unwrap();
     assert_eq!(None, different);
 
     // simple update
-    ALLOWANCE.update(&mut store, (b"owner", b"spender"), |v| {
+    ALLOWANCE.update(&mut store, ("owner", "spender"), |v| {
         Ok(v.unwrap_or_default() + 222)
     })?;
-    let loaded = ALLOWANCE.load(&store, (b"owner", b"spender"))?;
+    let loaded = ALLOWANCE.load(&store, ("owner", "spender"))?;
     assert_eq!(999, loaded);
 
     Ok(())
@@ -267,7 +264,7 @@ reusing the calculated path to this key.
 For simple keys, this is just a bit less typing and a bit less gas if you
 use the same key for many calls. However, for composite keys, like
 `(b"owner", b"spender")` it is **much** less typing. And highly recommended anywhere
-you will use the a composite key even twice:
+you will use a composite key even twice:
 
 ```rust
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
@@ -276,8 +273,8 @@ struct Data {
     pub age: i32,
 }
 
-const PEOPLE: Map<&[u8], Data> = Map::new(b"people");
-const ALLOWANCE: Map<(&[u8], &[u8]), u64> = Map::new(b"allow");
+const PEOPLE: Map<&str, Data> = Map::new("people");
+const ALLOWANCE: Map<(&str, &str), u64> = Map::new("allow");
 
 fn demo() -> StdResult<()> {
     let mut store = MockStorage::new();
@@ -287,7 +284,7 @@ fn demo() -> StdResult<()> {
     };
 
     // create a Path one time to use below
-    let john = PEOPLE.key(b"john");
+    let john = PEOPLE.key("john");
 
     // Use this just like an Item above
     let empty = john.may_load(&store)?;
@@ -301,7 +298,7 @@ fn demo() -> StdResult<()> {
 
     // Same for composite keys, just use both parts in key().
     // Notice how much less verbose than the above example.
-    let allow = ALLOWANCE.key((b"owner", b"spender"));
+    let allow = ALLOWANCE.key(("owner", "spender"));
     allow.save(&mut store, &1234)?;
     let loaded = allow.load(&store)?;
     assert_eq!(1234, loaded);
@@ -327,9 +324,9 @@ over all items with `range(store, min, max, order)`. It supports `Order::Ascendi
 
 ```rust
 #[derive(Copy, Clone, Debug)]
-pub enum Bound<'a> {
-    Inclusive(&'a [u8]),
-    Exclusive(&'a [u8]),
+pub enum Bound {
+    Inclusive(Vec<u8>),
+    Exclusive(Vec<u8>),
     None,
 }
 ```
@@ -347,17 +344,17 @@ struct Data {
     pub age: i32,
 }
 
-const PEOPLE: Map<&[u8], Data> = Map::new(b"people");
-const ALLOWANCE: Map<(&[u8], &[u8]), u64> = Map::new(b"allow");
+const PEOPLE: Map<&str, Data> = Map::new("people");
+const ALLOWANCE: Map<(&str, &str), u64> = Map::new("allow");
 
 fn demo() -> StdResult<()> {
     let mut store = MockStorage::new();
 
     // save and load on two keys
     let data = Data { name: "John".to_string(), age: 32 };
-    PEOPLE.save(&mut store, b"john", &data)?;
+    PEOPLE.save(&mut store, "john", &data)?;
     let data2 = Data { name: "Jim".to_string(), age: 44 };
-    PEOPLE.save(&mut store, b"jim", &data2)?;
+    PEOPLE.save(&mut store, "jim", &data2)?;
 
     // iterate over them all
     let all: StdResult<Vec<_>> = PEOPLE
@@ -365,46 +362,46 @@ fn demo() -> StdResult<()> {
         .collect();
     assert_eq!(
         all?,
-        vec![(b"jim".to_vec(), data2), (b"john".to_vec(), data.clone())]
+        vec![("jim".to_vec(), data2), ("john".to_vec(), data.clone())]
     );
 
     // or just show what is after jim
     let all: StdResult<Vec<_>> = PEOPLE
         .range(
             &store,
-            Bound::Exclusive(b"jim"),
+            Bound::Exclusive("jim"),
             Bound::None,
             Order::Ascending,
         )
         .collect();
-    assert_eq!(all?, vec![(b"john".to_vec(), data)]);
+    assert_eq!(all?, vec![("john".to_vec(), data)]);
 
     // save and load on three keys, one under different owner
-    ALLOWANCE.save(&mut store, (b"owner", b"spender"), &1000)?;
-    ALLOWANCE.save(&mut store, (b"owner", b"spender2"), &3000)?;
-    ALLOWANCE.save(&mut store, (b"owner2", b"spender"), &5000)?;
+    ALLOWANCE.save(&mut store, ("owner", "spender"), &1000)?;
+    ALLOWANCE.save(&mut store, ("owner", "spender2"), &3000)?;
+    ALLOWANCE.save(&mut store, ("owner2", "spender"), &5000)?;
 
     // get all under one key
     let all: StdResult<Vec<_>> = ALLOWANCE
-        .prefix(b"owner")
+        .prefix("owner")
         .range(&store, Bound::None, Bound::None, Order::Ascending)
         .collect();
     assert_eq!(
         all?,
-        vec![(b"spender".to_vec(), 1000), (b"spender2".to_vec(), 3000)]
+        vec![("spender".to_vec(), 1000), ("spender2".to_vec(), 3000)]
     );
 
     // Or ranges between two items (even reverse)
     let all: StdResult<Vec<_>> = ALLOWANCE
-        .prefix(b"owner")
+        .prefix("owner")
         .range(
             &store,
-            Bound::Exclusive(b"spender1"),
-            Bound::Inclusive(b"spender2"),
+            Bound::Exclusive("spender1"),
+            Bound::Inclusive("spender2"),
             Order::Descending,
         )
         .collect();
-    assert_eq!(all?, vec![(b"spender2".to_vec(), 3000)]);
+    assert_eq!(all?, vec![("spender2".to_vec(), 3000)]);
 
     Ok(())
 }
@@ -412,15 +409,13 @@ fn demo() -> StdResult<()> {
 
 ## IndexedMap
 
-In cw-plus, there's currently one example of `IndexedMap` usage, in the `cw721-base` contract.
-Let's use it to illustrate `IndexedMap` definition and usage.
+Let's sue one example of `IndexedMap` definition and usage, originally taken from the `cw721-base` contract.
 
 ### Definition
 
 ```rust
 pub struct TokenIndexes<'a> {
-  // pk goes to second tuple element
-  pub owner: MultiIndex<'a, (Addr, Vec<u8>), TokenInfo>,
+  pub owner: MultiIndex<'a, Addr, TokenInfo>,
 }
 
 impl<'a> IndexList<TokenInfo> for TokenIndexes<'a> {
@@ -433,7 +428,7 @@ impl<'a> IndexList<TokenInfo> for TokenIndexes<'a> {
 pub fn tokens<'a>() -> IndexedMap<'a, &'a str, TokenInfo, TokenIndexes<'a>> {
   let indexes = TokenIndexes {
     owner: MultiIndex::new(
-      |d: &TokenInfo, k: Vec<u8>| (d.owner.clone(), k),
+      |d: &TokenInfo| d.owner.clone(),
       "tokens",
       "tokens__owner",
     ),
@@ -445,20 +440,19 @@ pub fn tokens<'a>() -> IndexedMap<'a, &'a str, TokenInfo, TokenIndexes<'a>> {
 Let's discuss this piece by piece:
 ```rust
 pub struct TokenIndexes<'a> {
-  // pk goes to second tuple element
-  pub owner: MultiIndex<'a, (Addr, Vec<u8>), TokenInfo>,
+  pub owner: MultiIndex<'a, Addr, TokenInfo, String>,
 }
 ```
 
 These are the index definitions. Here there's only one index, called `owner`. There could be more, as public
 members of the `TokenIndexes` struct.
 
-We see that the `owner` index is a `MultiIndex`. A multi-index can have repeated values as keys. That's why
-the primary key is being added as the last element of the multi-index key.
+We see that the `owner` index is a `MultiIndex`. A multi-index can have repeated values as keys. The primary key is
+used internally as the last element of the multi-index key, to disambiguate repeated index values.
 Like the name implies, this is an index over tokens, by owner. Given that an owner can have multiple tokens,
 we need a `MultiIndex` to be able to list / iterate over all the tokens a given owner has.
 
-So, to recap, the `TokenInfo`  data will originally be stored by `token_id` (which is a string value).
+The `TokenInfo` data will originally be stored by `token_id` (which is a string value).
 You can see this in the token creation code:
 ```rust
     tokens().update(deps.storage, &msg.token_id, |old| match old {
@@ -468,46 +462,26 @@ You can see this in the token creation code:
 ```
 (Incidentally, this is using `update` instead of `save`, to avoid overwriting an already existing token).
 
-Then, it will be indexed by token `owner` (which is an `Addr`), so that we can list all the tokens an owner has.
-That's why the `owner` index key is `(Addr, Vec<u8>)`. The first owned element is the `owner` data
-, whereas the second one is the `token_id` (converted internally to `Vec<u8>`).
+Given that `token_id` is a string value, we specify `String` as the last argument of the `MultiIndex` definition.
+That way, the deserialization of the primary key will be done to the right type (an owned string).
 
-The important thing here is that the key (and its components, in the case of a combined key) must implement
-the `PrimaryKey` trait. You can see that the 2-tuple `(_, _)`, `Addr`, and `Vec<u8>` do implement `PrimaryKey`:
+Then, this `TokenInfo` data will be indexed by token `owner` (which is an `Addr`). So that we can list all the tokens
+an owner has. That's why the `owner` index key is `Addr`.
 
-```rust
-impl<'a, T: PrimaryKey<'a> + Prefixer<'a>, U: PrimaryKey<'a>> PrimaryKey<'a> for (T, U) {
-    type Prefix = T;
-    type SubPrefix = ();
-
-    fn key(&self) -> Vec<&[u8]> {
-        let mut keys = self.0.key();
-        keys.extend(&self.1.key());
-        keys
-    }
-}
-```
+Other important thing here is that the key (and its components, in the case of a composite key) must implement
+the `PrimaryKey` trait. You can see that `Addr` do implement `PrimaryKey`:
 
 ```rust
 impl<'a> PrimaryKey<'a> for Addr {
-    type Prefix = ();
-    type SubPrefix = ();
+  type Prefix = ();
+  type SubPrefix = ();
+  type Suffix = Self;
+  type SuperSuffix = Self;
 
-    fn key(&self) -> Vec<&[u8]> {
-        // this is simple, we don't add more prefixes
-        vec![self.as_bytes()]
-    }
-}
-```
-
-```rust
-impl<'a> PrimaryKey<'a> for Vec<u8> {
-    type Prefix = ();
-    type SubPrefix = ();
-
-    fn key(&self) -> Vec<&[u8]> {
-        vec![&self]
-    }
+  fn key(&self) -> Vec<Key> {
+    // this is simple, we don't add more prefixes
+    vec![Key::Ref(self.as_bytes())]
+  }
 }
 ```
 
@@ -527,7 +501,7 @@ impl<'a> IndexList<TokenInfo> for TokenIndexes<'a> {
 This implements the `IndexList` trait for `TokenIndexes`.
 Note: this code is more or less boiler-plate, and needed for the internals. Do not try to customize this;
 just return a list of all indexes.
-Implementing this trait serves two purposes (which are really one, and the same): it allows the indexes
+Implementing this trait serves two purposes (which are really one and the same): it allows the indexes
 to be queried through `get_indexes`, and, it allows `TokenIndexes` to be treated as an `IndexList`. So that
 it can be passed as a parameter during `IndexedMap` construction, below:
 
@@ -535,7 +509,7 @@ it can be passed as a parameter during `IndexedMap` construction, below:
 pub fn tokens<'a>() -> IndexedMap<'a, &'a str, TokenInfo, TokenIndexes<'a>> {
     let indexes = TokenIndexes {
         owner: MultiIndex::new(
-            |d: &TokenInfo, k: Vec<u8>| (d.owner.clone(), k),
+            |d: &TokenInfo| d.owner.clone(),
             "tokens",
             "tokens__owner",
         ),
@@ -545,17 +519,15 @@ pub fn tokens<'a>() -> IndexedMap<'a, &'a str, TokenInfo, TokenIndexes<'a>> {
 ```
 
 Here `tokens()` is just a helper function, that simplifies the `IndexedMap` construction for us. First the
-index (es) is (are) created, and then, the `IndexedMap` is created (using `IndexedMap::new`), and returned.
+index (es) is (are) created, and then, the `IndexedMap` is created and returned.
 
 During index creation, we must supply an index function per index
 ```rust
-        owner: MultiIndex::new(
-            |d: &TokenInfo, k: Vec<u8>| (d.owner.clone(), k),
+        owner: MultiIndex::new(|d: &TokenInfo| d.owner.clone(),
 ```
 
-, which is the one that will take the value, and the primary key (which is always in `Vec<u8>` form) of the
-original map, and create the index key from them. Of course, this requires that the elements required
-for the index key are present in the value (which makes sense).
+, which is the one that will take the value of the original map, and create the index key from it.
+Of course, this requires that the elements required for the index key are present in the value.
 Besides the index function, we must also supply the namespace of the pk, and the one for the new index.
 
 ---
@@ -597,7 +569,9 @@ Notice this uses `prefix()`, explained above in the `Map` section.
     let tokens = res?;
 ```
 Now `tokens` contains `(token_id, TokenInfo)` pairs for the given `owner`.
-The pk values are `Vec<u8>`, as this is a limitation of the current implementation.
+The pk values are `Vec<u8>` in the case of `prefix` + `range`, but will be deserialized to the proper type using
+`prefix_de` + `range_de`; provided that the (optional) pk deserialization type (`String`, in this case)
+is specified in the `MultiIndex` definition (see #Index keys deserialization, below).
 
 Another example that is similar, but returning only the `token_id`s, using the `keys()` method:
 ```rust
@@ -614,4 +588,13 @@ Another example that is similar, but returning only the `token_id`s, using the `
         .take(limit)
         .collect();
 ```
-Now `pks` contains `token_id` values (as `Vec<u8>`s) for the given `owner`.
+Now `pks` contains `token_id` values (as raw `Vec<u8>`s) for the given `owner`. Again, by using `prefix_de` + `range_de`,
+a deserialized key can be obtained instead, as detailed in the next section.
+
+### Index keys deserialization
+
+For `UniqueIndex` and `MultiIndex`, the primary key (`PK`) type needs to be specified, in order to deserialize
+the primary key to it. This generic type comes with a default of `()`, which means that no deserialization / data
+will be provided for the primary key. This is for backwards compatibility with the current `UniqueIndex` / `MultiIndex`
+impls. It can also come in handy in cases you don't need the primary key, and are interested only in the deserialized
+values.

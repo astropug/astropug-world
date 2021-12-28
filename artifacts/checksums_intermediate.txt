@@ -1,2 +1,3 @@
-37d491a2de5b1930f7a03e9585dcfb5fdb1253e39fe43b7b1c181fcea2f08640  ./target/wasm32-unknown-unknown/release/cw20_base.wasm
-04badda7ebbd4f56e662cea0f0b1c8ed3d9a0fbbb9d2a8e7546ae093b2f1c509  ./target/wasm32-unknown-unknown/release/terraswap_pair.wasm
+94ba86d4f857d84b674917d9ef8721549e92506d2951ccb6085785b9f69d7573  ./target/wasm32-unknown-unknown/release/cw20_base.wasm
+d1f061e42d0484e2bfa5c71938dbbe41081a83c6256930f32ff13a9bd5724679  ./target/wasm32-unknown-unknown/release/cw20_staking.wasm
+eb905719a8fdc56a8abebafb81d709729a20058675af44c94647c52797edeea5  ./target/wasm32-unknown-unknown/release/terraswap_pair.wasm
