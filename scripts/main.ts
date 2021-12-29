@@ -54,7 +54,24 @@ let terraswapLpToken: string;
 // Setup
 //----------------------------------------------------------------------------------------
 
+
+
 async function setupTest() {
+  // setupStaking();
+  const cw20CodeId: number = await uploadToken();
+
+  await delay(4000).then(_ => initToken(cw20CodeId));
+
+  const pairCodeId: number = await uploadPair();
+
+  await delay(4000).then(_ => initPair(pairCodeId));
+}
+
+async function delay(time: number) {
+  return new Promise(resolve => setTimeout(resolve, time));
+}
+
+async function setupStaking() {
   // // Step 0. Upload Staking Token code
   // process.stdout.write("Staking code...");
 
@@ -86,49 +103,66 @@ async function setupTest() {
   const stakeToken = stakingResult.logs[0].events[0].attributes[3].value;
 
   console.log(chalk.green("Done!"), `${chalk.blue("contractAddress")}=${stakeToken}`);
+}
 
+async function uploadToken(): Promise<number> {
   // Step 1. Upload TerraSwap Token code
   process.stdout.write("Uploading TerraSwap Token code... ");
 
   const cw20CodeId = await storeCode(
-    terra,
-    deployer,
-    path.resolve(__dirname, tokenArtifactPath)
+      terra,
+      deployer,
+      path.resolve(__dirname, tokenArtifactPath)
   );
 
   console.log(chalk.green("Done!"), `${chalk.blue("codeId")}=${cw20CodeId}`);
 
+  return cw20CodeId;
+}
+
+async function initToken(cw20CodeId: number, stakeToken: string = '') {
   // Step 2. Instantiate TerraSwap Token contract
   process.stdout.write("Instantiating TerraSwap Token contract... ");
 
-  const tokenResult = await instantiateContract(terra, deployer, deployer, cw20CodeId, {
+  let initJson: any = {
     name: "AstroPugTest",
     symbol: "APUGT",
     decimals: 6,
     initial_balances: [
       { address: deployer.key.accAddress, amount: "50000000000000000" }
-    ],
-    mint: {
+    ]
+  };
+
+  if ( stakeToken ) {
+    initJson['mint'] = {
       minter: stakeToken,
       cap: "100000000000000000"
-    }
-  });
+    };
+  }
+
+  const tokenResult = await instantiateContract(terra, deployer, deployer, cw20CodeId, initJson);
 
   mirrorToken = tokenResult.logs[0].events[0].attributes[3].value;
 
   console.log(chalk.green("Done!"), `${chalk.blue("contractAddress")}=${mirrorToken}`);
+}
 
+async function uploadPair(): Promise<number> {
   // Step 3. Upload TerraSwap Pair code
   process.stdout.write("Uploading TerraSwap pair code... ");
 
-  const codeId = await storeCode(
-    terra,
-    deployer,
-    path.resolve(__dirname, "../artifacts/terraswap_pair.wasm")
+  const pairCodeId = await storeCode(
+      terra,
+      deployer,
+      path.resolve(__dirname, "../artifacts/terraswap_pair.wasm")
   );
 
-  console.log(chalk.green("Done!"), `${chalk.blue("codeId")}=${codeId}`);
+  console.log(chalk.green("Done!"), `${chalk.blue("codeId")}=${pairCodeId}`);
 
+  return pairCodeId;
+}
+
+async function initPair(pairCodeId: number) {
   // Step 4. Instantiate TerraSwap Pair contract
   process.stdout.write("Instantiating TerraSwap pair contract... ");
 
@@ -162,17 +196,17 @@ async function setupTest() {
       token_code_id: cw20CodeId
   };*/
 
-  const pairResult = await instantiateContract(terra, deployer, deployer, codeId, {
+  const pairResult = await instantiateContract(terra, deployer, deployer, pairCodeId, {
     asset_infos: [{
       token: {
         contract_addr: mirrorToken
       }
     },
-    {
-      native_token: {
-        denom: "uusd"
+      {
+        native_token: {
+          denom: "uusd"
+        }
       }
-    }
     ],
     token_code_id: 154
   });
@@ -187,11 +221,13 @@ async function setupTest() {
   terraswapLpToken = event?.attributes[7].value as string;
 
   console.log(
-    chalk.green("Done!"),
-    `${chalk.blue("terraswapPair")}=${terraswapPair}`,
-    `${chalk.blue("terraswapLpToken")}=${terraswapLpToken}`
+      chalk.green("Done!"),
+      `${chalk.blue("terraswapPair")}=${terraswapPair}`,
+      `${chalk.blue("terraswapLpToken")}=${terraswapLpToken}`
   );
+}
 
+async function test() {
   // Step 5. Mint tokens for use in testing
   process.stdout.write("Fund user 1 with MIR... ");
 
