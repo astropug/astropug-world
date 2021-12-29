@@ -59,11 +59,8 @@ let terraswapLpToken: string;
 async function setupTest() {
   // setupStaking();
   const cw20CodeId: number = await uploadToken();
-
   await delay(4000).then(_ => initToken(cw20CodeId));
-
   const pairCodeId: number = await uploadPair();
-
   await delay(4000).then(_ => initPair(pairCodeId));
 }
 
