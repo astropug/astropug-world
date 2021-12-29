@@ -7,6 +7,7 @@ import {
   LocalTerra,
   Msg,
   MsgInstantiateContract,
+  MsgExecuteContract,
   MsgStoreCode,
   StdFee,
   Wallet,
@@ -91,6 +92,25 @@ export async function instantiateContract(
       deployer.key.accAddress,
       admin.key.accAddress,
       codeId,
+      instantiateMsg
+    ),
+  ]);
+  return result;
+}
+
+/**
+ * @notice Execute a contract .
+ */
+export async function executeContract(
+  terra: LocalTerra | LCDClient,
+  deployer: Wallet,
+  contractAddress: string, 
+  instantiateMsg: object
+) {
+  const result = await sendTransaction(terra, deployer, [
+    new MsgExecuteContract(
+      deployer.key.accAddress,
+      contractAddress,
       instantiateMsg
     ),
   ]);

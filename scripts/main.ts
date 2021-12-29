@@ -11,6 +11,7 @@ import {
   instantiateContract,
   queryNativeTokenBalance,
   queryTokenBalance,
+  executeContract,
 } from "./helpers";
 
 chai.use(chaiAsPromised);
@@ -44,17 +45,83 @@ const user1 = obj; //terra.wallets.test2;
 const user2 = obj; //terra.wallets.test3;
 
 const tokenArtifactPath = "../artifacts/cw20_base.wasm";
-const stakingArtifactPath = "../artifacts/cw20_staking.wasm";
+// const stakingArtifactPath = "../artifacts/cw20_staking.wasm";
 
 let mirrorToken: string;
 let terraswapPair: string;
 let terraswapLpToken: string;
+// const mirrorToken: string = "terra16dfasjhugwal0ewaexdxjhfwx7j40n2qzgltfa";
+// const terraswapPair: string = "terra1gcgye6j2rqc526mhcl9va55ws52rv4z72qdjh8";
+// const terraswapLpToken: string = "terra1hu04y49c5tyvf75lfh0zdz9e9dy7faqzueytu8";
 
 //----------------------------------------------------------------------------------------
 // Setup
 //----------------------------------------------------------------------------------------
 
 async function setupTest() {
+  // process.stdout.write("Should burn tokens");
+
+  // const result = await sendTransaction(terra, deployer, [
+  //   new MsgExecuteContract(
+  //     deployer.key.accAddress,
+  //     mirrorToken,
+  //     { 
+  //       burn: {
+  //         amount: "123123123000000"
+  //       }
+  //      },
+  //     {
+  //       uusd: "5000000",
+  //     }
+  //   ),
+  // ]);
+  // console.log(result);
+  // process.stdout.write("Should provide liquidity... ");
+
+  // const result = await sendTransaction(terra, deployer, [
+  //   new MsgExecuteContract(
+  //     deployer.key.accAddress,
+  //     terraswapPair,
+  //     {
+  //       provide_liquidity: {
+  //         assets: [
+  //           {
+  //             info: {
+  //               token: {
+  //                 contract_addr: mirrorToken,
+  //               },
+  //             },
+  //             amount: "500000000000",
+  //           },
+  //           {
+  //             info: {
+  //               native_token: {
+  //                 denom: "uluna",
+  //               },
+  //             },
+  //             amount: "3800000000",
+  //           },
+  //         ],
+  //       },
+  //     },
+  //     {
+  //       uusd: "600000000",
+  //     }
+  //   ),
+  // ]);
+  // console.log(result);
+
+  // const poolUMir = await queryTokenBalance(terra, terraswapPair, mirrorToken);
+  // console.log("Pairs Token balance");
+  // console.log(poolUMir);
+  // const poolUUsd = await queryNativeTokenBalance(terra, terraswapPair, "uusd");
+  // console.log("Pairs uusd Token balance");
+  // console.log(poolUUsd);
+  // const userULp = await queryTokenBalance(terra, deployer.key.accAddress, terraswapLpToken);
+  // console.log("Account token balance");
+  // console.log(userULp);
+
+
   // // Step 0. Upload Staking Token code
   // process.stdout.write("Staking code...");
 
@@ -64,28 +131,28 @@ async function setupTest() {
   //   path.resolve(__dirname, stakingArtifactPath)
   // );
 
-  const ScodeId=29256
-  const stakeCodeId = ScodeId
+  // const ScodeId=29256
+  // const stakeCodeId = ScodeId
 
-  console.log(chalk.green("Done!"), `${chalk.blue("codeId")}=${stakeCodeId}`);
+  // console.log(chalk.green("Done!"), `${chalk.blue("codeId")}=${stakeCodeId}`);
 
-  // Step 2. Instantiate Staking Token contract
-  process.stdout.write("Instantiating Staking Token contract... ");
+  // // Step 2. Instantiate Staking Token contract
+  // process.stdout.write("Instantiating Staking Token contract... ");
 
-  const stakingResult = await instantiateContract(terra, deployer, deployer, stakeCodeId, {
-    name: "AstroPugStakeTest",
-    symbol: "APUGST",
-    decimals: 6,
-    validator: deployer.key.accAddress,
-    unbonding_period: 2592000,
-    exit_tax: 0.05,
-    min_withdrawal: 1000000000000
-  });
+  // const stakingResult = await instantiateContract(terra, deployer, deployer, stakeCodeId, {
+  //   name: "AstroPugStakeTest",
+  //   symbol: "APUGST",
+  //   decimals: 6,
+  //   validator: deployer.key.accAddress,
+  //   unbonding_period: 2592000,
+  //   exit_tax: 0.05,
+  //   min_withdrawal: 1000000000000
+  // });
 
-  console.log(stakingResult);
-  const stakeToken = stakingResult.logs[0].events[0].attributes[3].value;
+  // console.log(stakingResult);
+  // const stakeToken = stakingResult.logs[0].events[0].attributes[3].value;
 
-  console.log(chalk.green("Done!"), `${chalk.blue("contractAddress")}=${stakeToken}`);
+  // console.log(chalk.green("Done!"), `${chalk.blue("contractAddress")}=${stakeToken}`);
 
   // Step 1. Upload TerraSwap Token code
   process.stdout.write("Uploading TerraSwap Token code... ");
@@ -102,16 +169,12 @@ async function setupTest() {
   process.stdout.write("Instantiating TerraSwap Token contract... ");
 
   const tokenResult = await instantiateContract(terra, deployer, deployer, cw20CodeId, {
-    name: "AstroPugTest",
-    symbol: "APUGT",
+    name: "Puggles",
+    symbol: "PUGGG",
     decimals: 6,
     initial_balances: [
       { address: deployer.key.accAddress, amount: "50000000000000000" }
-    ],
-    mint: {
-      minter: stakeToken,
-      cap: "100000000000000000"
-    }
+    ]
   });
 
   mirrorToken = tokenResult.logs[0].events[0].attributes[3].value;
@@ -132,35 +195,35 @@ async function setupTest() {
   // Step 4. Instantiate TerraSwap Pair contract
   process.stdout.write("Instantiating TerraSwap pair contract... ");
 
-  /*{
-    "asset_infos": [{
-    "token": {
-      "contract_addr": "terra12sxpgy9l5qcyeyxguks6u7rurn3hen9vy6k5vr"
-    }
-  },
-    {
-      "native_token": {
-        "denom": "uusd"
-      }
-    }
-  ],
-      "token_code_id": 28689
-  }*/
+  // /*{
+  //   "asset_infos": [{
+  //   "token": {
+  //     "contract_addr": "terra12sxpgy9l5qcyeyxguks6u7rurn3hen9vy6k5vr"
+  //   }
+  // },
+  //   {
+  //     "native_token": {
+  //       "denom": "uusd"
+  //     }
+  //   }
+  // ],
+  //     "token_code_id": 28689
+  // }*/
 
-  /*let a = {
-    asset_infos: [{
-    token: {
-      contract_addr: mirrorToken
-    }
-  },
-    {
-      native_token: {
-        denom: "uusd"
-      }
-    }
-  ],
-      token_code_id: cw20CodeId
-  };*/
+  // /*let a = {
+  //   asset_infos: [{
+  //   token: {
+  //     contract_addr: mirrorToken
+  //   }
+  // },
+  //   {
+  //     native_token: {
+  //       denom: "uusd"
+  //     }
+  //   }
+  // ],
+  //     token_code_id: cw20CodeId
+  // };*/
 
   const pairResult = await instantiateContract(terra, deployer, deployer, codeId, {
     asset_infos: [{

@@ -1,2 +1,0 @@
-37d491a2de5b1930f7a03e9585dcfb5fdb1253e39fe43b7b1c181fcea2f08640  ./target/wasm32-unknown-unknown/release/cw20_base.wasm
-04badda7ebbd4f56e662cea0f0b1c8ed3d9a0fbbb9d2a8e7546ae093b2f1c509  ./target/wasm32-unknown-unknown/release/terraswap_pair.wasm
